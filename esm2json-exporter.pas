@@ -114,11 +114,23 @@ begin
 end;
 
 
+function JsonQuoted(const s: string): string;
+var
+  escaped: string;
+begin
+  escaped := StringReplace(s, '\\', '\\\\', [rfReplaceAll]);
+  escaped := StringReplace(escaped, '"', '\\"', [rfReplaceAll]);
+  escaped := StringReplace(escaped, #13#10, '\\r\\n', [rfReplaceAll]);
+  escaped := StringReplace(escaped, #10, '\\n', [rfReplaceAll]);
+  Result := '"' + escaped + '"';
+end;
+
+
 function ProcessChild(e: IInterface; prefix: string; postfix: string): integer;
 var
   element: IInterface;
   native_type, element_count, element_index, child_count: integer;
-  element_name, type_string, element_path, element_edit_value, prefix2, postfix2: string;
+  element_name, type_string, element_path, element_edit_value, element_edit_text, prefix2, postfix2: string;
   native_value: Variant;
   parent_type, element_type: TwbElementType;
   stringlist_length: integer;
@@ -156,9 +168,6 @@ begin
     element_path := Path(element);
     child_count := ElementCount(element);
     element_type := ElementType(element);
-    element_edit_value := '"' + GetEditValue(element) + '"';
-    native_value := GetNativeValue(element);
-    native_type := VarType(native_value);
 
     type_string := '';
     // DEBUGGING
@@ -174,13 +183,11 @@ begin
 
   //      if (element_type = etFlag) then element_edit_value := IntToHex(native_value, 8) + '!!!';
   //      if (VarType(native_value) = varLongWord) then element_edit_value := IntToHex(native_value, 8);
+        native_value := GetNativeValue(element);
+        native_type := VarType(native_value);
         if (native_type = 258) then
         begin
-          element_edit_value := StringReplace(native_value,'\','\\', [rfReplaceAll]);
-          element_edit_value := StringReplace(element_edit_value,'"','\"', [rfReplaceAll]);
-          element_edit_value := StringReplace(element_edit_value, #13#10, '\r\n', [rfReplaceAll]);
-          element_edit_value := StringReplace(element_edit_value, #10, '\n', [rfReplaceAll]);
-          element_edit_value := '"' + element_edit_value + '"'
+          element_edit_value := JsonQuoted(native_value);
         end
         else if (native_type = varDouble) then
         begin
@@ -203,9 +210,14 @@ begin
         begin
           element_edit_value := '"' + IntToHex(native_value, 4) + 'H"';
         end
-        else if (varByte = varLongWord) then
+        else if (native_type = varByte) then
         begin
           element_edit_value := '"' + IntToHex(native_value, 2) + 'H"';
+        end
+        else
+        begin
+          element_edit_text := GetEditValue(element);
+          element_edit_value := JsonQuoted(element_edit_text);
         end;
 
         // Display as: "EDID:FormID"
@@ -294,6 +306,7 @@ begin
       begin
         if (Pos('Flags', element_path) <> 0) then
         begin
+          native_value := GetNativeValue(element);
           element_edit_value := '"' + IntToHex(native_value, 8) + 'H"';
           if (CompareText('ENIT - ENIT \ Flags', element_path) = 0) then element_edit_value := '"' + IntToHex(native_value, 2) + 'H"';
           if (CompareText('CELL \ DATA - Flags', element_path) = 0) then element_edit_value := '"' + IntToHex(native_value, 2) + 'H"';
