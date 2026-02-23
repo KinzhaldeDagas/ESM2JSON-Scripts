@@ -351,6 +351,7 @@ begin
 //  AddMessage('Processing: ' + Name(e));
 
   parent := GetContainer(e);
+  element_path := '';
   element_filename := IntToHex(GetLoadOrderFormID(e),8) + '.json';
   while (Assigned(parent)) do
     begin
@@ -462,6 +463,13 @@ begin
   if (json_filecount mod 100 = 0) then AddMessage('INFO: ' + IntToStr(json_filecount) + ' files written...');
 //  json_output := TStringList.Create;
   ProcessChild(e, '', '');
+  if (element_path = '') then
+  begin
+    AddMessage('WARN: Empty export path for ' + Name(e) + '; skipping record.');
+    json_output.Clear;
+    Exit;
+  end;
+
   ForceDirectories(element_path);
   json_output.SaveToFile(element_path + element_filename);
 //  json_output.Free;
