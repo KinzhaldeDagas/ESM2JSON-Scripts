@@ -14,6 +14,7 @@ begin
   Result := 0;
 
   json_output := TStringList.Create;
+  json_filecount := 0;
 //  PrintElementTypes();
 //  PrintVarTypes();
 
@@ -77,6 +78,12 @@ function IsReference(e: IInterface): boolean;
 var
   sig: string;
 begin
+  if not Assigned(e) then
+  begin
+    Result := False;
+    Exit;
+  end;
+
   sig := Signature(e);
   if ( (sig = 'ACHR') Or (sig = 'REFR') Or (sig = 'ACRE') ) then
   begin
@@ -97,6 +104,12 @@ var
 begin
 
   target_record := RecordByFormID(GetFile(e), formid, True);
+  if not Assigned(target_record) then
+  begin
+    Result := '"' + IntToHex(formid, 8) + 'H"';
+    Exit;
+  end;
+
   name_string := EditorID(target_record);
   if ( (name_string = '') And (IsReference(target_record)) ) then
   begin
@@ -203,7 +216,7 @@ begin
         begin
           element_edit_value := '"' + IntToHex(native_value, 4) + 'H"';
         end
-        else if (varByte = varLongWord) then
+        else if (native_type = varByte) then
         begin
           element_edit_value := '"' + IntToHex(native_value, 2) + 'H"';
         end;
