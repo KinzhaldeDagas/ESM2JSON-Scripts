@@ -283,9 +283,9 @@ begin
         if (Pos('SCHR - Basic Script Data \ Type', element_path) <> 0) then element_edit_value := '"' + GetEditValue(element) + ':' + IntToStr(native_value) + '"';
         if (Pos('SCRO - Global Reference', element_path) <> 0) then element_edit_value := GetFormIDLabel(e, native_value);
 
-        if (Pos(' \ DATA - Point Count', element_path) <> 0) then element_edit_value := IntToStr(native_value);
-        if (Pos(' \ Connections', element_path) <> 0) then element_edit_value := IntToStr(native_value);
-        if (Pos('PGRP - Points \ Point ', element_path) <> 0) then element_edit_value := IntToStr(native_value);
+        if (Pos(' \ DATA - Point Count', element_path) <> 0) then element_edit_value := GetEditValue(element);
+        if (Pos(' \ Connections', element_path) <> 0) then element_edit_value := GetEditValue(element);
+        if (Pos('PGRP - Points \ Point ', element_path) <> 0) then element_edit_value := GetEditValue(element);
 
         if (Pos(' Color \ Red', element_path) <> 0) then element_edit_value := IntToStr(native_value);
         if (Pos(' Color \ Green', element_path) <> 0) then element_edit_value := IntToStr(native_value);
