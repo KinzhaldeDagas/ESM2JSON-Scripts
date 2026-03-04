@@ -246,7 +246,8 @@ begin
         if (Pos('\ Value', element_path) <> 0) then element_edit_value := IntToStr(native_value);
         if (Pos('Data Size', element_path) <> 0) then element_edit_value := IntToStr(native_value);
         if (Pos('\ Damage', element_path) <> 0) then element_edit_value := IntToStr(native_value);
-        if (Pos('\ Armor', element_path) <> 0) then element_edit_value := IntToStr(native_value);
+        // Some records expose armor as non-integer variant values; avoid IntToStr type mismatches.
+        if (Pos('\ Armor', element_path) <> 0) then element_edit_value := VarToStr(native_value);
         if (Pos('\ Health', element_path) <> 0) then element_edit_value := IntToStr(native_value);
 
         if (Pos('EFID - Magic effect name', element_path) <> 0) then element_edit_value := '"' + GetEditValue(element) + '"';
