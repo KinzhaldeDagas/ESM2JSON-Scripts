@@ -347,6 +347,7 @@ begin
   Result := 0;
 
   prefix := '    ';
+  element_path := '';
 
 //  AddMessage('Processing: ' + Name(e));
 
@@ -462,7 +463,15 @@ begin
   if (json_filecount mod 100 = 0) then AddMessage('INFO: ' + IntToStr(json_filecount) + ' files written...');
 //  json_output := TStringList.Create;
   ProcessChild(e, '', '');
-  ForceDirectories(element_path);
+  if (element_path = '') then element_path := '.';
+  if (element_path[Length(element_path)] <> '\') then element_path := element_path + '\';
+
+  if (not ForceDirectories(element_path)) And (not DirectoryExists(element_path)) then
+  begin
+    AddMessage('ERROR: Unable to create directory: ' + element_path);
+    Exit;
+  end;
+
   json_output.SaveToFile(element_path + element_filename);
 //  json_output.Free;
   json_output.Clear;
