@@ -127,6 +127,39 @@ begin
 end;
 
 
+function EscapeJsonString(value: string): string;
+begin
+  Result := StringReplace(value, '\', '\\', [rfReplaceAll]);
+  Result := StringReplace(Result, '"', '\"', [rfReplaceAll]);
+  Result := StringReplace(Result, #13#10, '\r\n', [rfReplaceAll]);
+  Result := StringReplace(Result, #10, '\n', [rfReplaceAll]);
+end;
+
+
+function FormatNativeValueAsJson(native_value: Variant; native_type: integer; fallback_edit_value: string): string;
+begin
+  case native_type of
+    258:
+      Result := '"' + EscapeJsonString(native_value) + '"';
+    varDouble:
+      Result := FloatToStrF(native_value, 2, 15, 15);
+    varBoolean:
+      if (native_value) then
+        Result := 'true'
+      else
+        Result := 'false';
+    varLongWord:
+      Result := '"' + IntToHex(native_value, 8) + 'H"';
+    varWord:
+      Result := '"' + IntToHex(native_value, 4) + 'H"';
+    varByte:
+      Result := '"' + IntToHex(native_value, 2) + 'H"';
+  else
+    Result := '"' + EscapeJsonString(fallback_edit_value) + '"';
+  end;
+end;
+
+
 function ProcessChild(e: IInterface; prefix: string; postfix: string): integer;
 var
   element: IInterface;
@@ -166,12 +199,10 @@ begin
 
     element := ElementByIndex(e, element_index);
     element_name := Name(element);
-    element_path := Path(element);
     child_count := ElementCount(element);
     element_type := ElementType(element);
-    element_edit_value := '"' + GetEditValue(element) + '"';
-    native_value := GetNativeValue(element);
-    native_type := VarType(native_value);
+    element_path := '';
+    element_edit_value := '';
 
     type_string := '';
     // DEBUGGING
@@ -180,46 +211,13 @@ begin
 //  if ( (element_type = etValue) or (element_type = etFlag) or (element_type = etSubRecord)) then
     if (child_count = 0) then
     begin
-
-//      AddMessage('DEBUG: element_path=' + element_path);
-      if (Pos('Unused', element_path) = 0) then
-      begin
+      native_value := GetNativeValue(element);
+      native_type := VarType(native_value);
+      element_path := Path(element);
+      element_edit_value := FormatNativeValueAsJson(native_value, native_type, GetEditValue(element));
 
   //      if (element_type = etFlag) then element_edit_value := IntToHex(native_value, 8) + '!!!';
   //      if (VarType(native_value) = varLongWord) then element_edit_value := IntToHex(native_value, 8);
-        if (native_type = 258) then
-        begin
-          element_edit_value := StringReplace(native_value,'\','\\', [rfReplaceAll]);
-          element_edit_value := StringReplace(element_edit_value,'"','\"', [rfReplaceAll]);
-          element_edit_value := StringReplace(element_edit_value, #13#10, '\r\n', [rfReplaceAll]);
-          element_edit_value := StringReplace(element_edit_value, #10, '\n', [rfReplaceAll]);
-          element_edit_value := '"' + element_edit_value + '"'
-        end
-        else if (native_type = varDouble) then
-        begin
-          element_edit_value := FloatToStrF(native_value, 2, 15, 15);
-        end
-        else if (native_type = varBoolean) then
-        begin
-          if (native_value) then begin
-            element_edit_value := 'true';
-          end else
-          begin
-            element_edit_value := 'false';
-          end;
-        end
-        else if (native_type = varLongWord) then
-        begin
-          element_edit_value := '"' + IntToHex(native_value, 8) + 'H"';
-        end
-        else if (native_type = varWord) then
-        begin
-          element_edit_value := '"' + IntToHex(native_value, 4) + 'H"';
-        end
-        else if (native_type = varByte) then
-        begin
-          element_edit_value := '"' + IntToHex(native_value, 2) + 'H"';
-        end;
 
         // Display as: "EDID:FormID"
         if (Pos('INFO \ Choices \ TCLT - Choice', element_path) <> 0) then element_edit_value := GetFormIDLabel(e, native_value);
@@ -295,7 +293,6 @@ begin
         if (Pos('\ XCMT - Music', element_path) <> 0) then element_edit_value := '"' + GetEditValue(element) + ':' + IntToStr(native_value) + '"';
         if (Pos('XCLL - Lighting \ Directional Rotation XY', element_path) <> 0) then element_edit_value := IntToStr(native_value);
         if (Pos('XCLL - Lighting \ Directional Rotation Z', element_path) <> 0) then element_edit_value := IntToStr(native_value);
-      end;
 
 //      AddMessage('DEBUG: VarType=' + VarToStr(VarType(native_value)));
       json_output.append(prefix + prefix2 + type_string + '"' + element_name + '": ' + element_edit_value + postfix2);
@@ -305,6 +302,8 @@ begin
     begin
       if ( (parent_type <> etSubRecordArray) And (parent_type <> etArray) )then
       begin
+        element_path := Path(element);
+        native_value := GetNativeValue(element);
         if (Pos('Flags', element_path) <> 0) then
         begin
           element_edit_value := '"' + IntToHex(native_value, 8) + 'H"';
