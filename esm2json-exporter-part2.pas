@@ -6,6 +6,9 @@ unit esm2json_exporter_part2;
 var
   json_output: TStringList;
   json_filecount: integer;
+  progress_total: integer;
+  progress_done: integer;
+  progress_scanned: boolean;
 
 // Called before processing
 // You can remove it if script doesn't require initialization code
@@ -15,6 +18,9 @@ begin
 
   json_output := TStringList.Create;
   json_filecount := 0;
+  progress_total := 0;
+  progress_done := 0;
+  progress_scanned := False;
 //  PrintElementTypes();
 //  PrintVarTypes();
 
@@ -335,6 +341,44 @@ begin
 end;
 
 // called for every record selected in xEdit
+
+function ShouldProcessPath(path_string: string): boolean;
+begin
+  Result := Pos('CELL', path_string) <> 0;
+end;
+
+
+function CountMatchingRecords(node: IInterface): integer;
+var
+  i, child_count: integer;
+  child: IInterface;
+  node_type: TwbElementType;
+  path_string: string;
+begin
+  Result := 0;
+
+  if not Assigned(node) then Exit;
+
+  node_type := ElementType(node);
+  if (node_type = etMainRecord) then
+  begin
+    path_string := UpperCase(FullPath(node));
+    if ShouldProcessPath(path_string) then
+      Result := 1
+    else
+      Result := 0;
+    Exit;
+  end;
+
+  child_count := ElementCount(node);
+  for i := 0 to child_count-1 do
+  begin
+    child := ElementByIndex(node, i);
+    Result := Result + CountMatchingRecords(child);
+  end;
+end;
+
+
 function Process(e: IInterface): integer;
 var
   element, parent: IInterface;
@@ -350,7 +394,20 @@ begin
   element_path := '';
 
   path_string := UpperCase(FullPath(e));
-  if (Pos('CELL', path_string) = 0) then Exit;
+
+  if not progress_scanned then
+  begin
+    progress_total := CountMatchingRecords(GetFile(e));
+    progress_done := 0;
+    progress_scanned := True;
+    AddMessage('Pre-scan (CELL-only) total records: ' + IntToStr(progress_total));
+    AddMessage('Progress: 0/' + IntToStr(progress_total));
+  end;
+
+  if not ShouldProcessPath(path_string) then Exit;
+
+  progress_done := progress_done + 1;
+  AddMessage('Progress: ' + IntToStr(progress_done) + '/' + IntToStr(progress_total));
 
 //  AddMessage('Processing: ' + Name(e));
 
@@ -490,6 +547,8 @@ end;
 function Finalize: integer;
 begin
   AddMessage('Script Complete.  ' + IntToStr(json_filecount) + ' json files written.');
+  if progress_scanned then
+    AddMessage('Final Progress: ' + IntToStr(progress_done) + '/' + IntToStr(progress_total));
   json_output.Free;
   Result := 0;
 end;
