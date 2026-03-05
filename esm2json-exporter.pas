@@ -6,15 +6,79 @@ unit esm2json_exporter;
 var
   json_output: TStringList;
   json_filecount: integer;
+  json_total_records: integer;
+
+
+function SanitizePathPart(value: string): string;
+begin
+  Result := Trim(value);
+  Result := StringReplace(Result, ':', '-', [rfReplaceAll]);
+  Result := StringReplace(Result, '"', '''', [rfReplaceAll]);
+  Result := StringReplace(Result, '*', '_', [rfReplaceAll]);
+  Result := StringReplace(Result, '?', '_', [rfReplaceAll]);
+  Result := StringReplace(Result, '<', '(', [rfReplaceAll]);
+  Result := StringReplace(Result, '>', ')', [rfReplaceAll]);
+  Result := StringReplace(Result, '|', '_', [rfReplaceAll]);
+  Result := StringReplace(Result, '/', '-', [rfReplaceAll]);
+  Result := StringReplace(Result, '\\', '-', [rfReplaceAll]);
+  if (Result = '') then
+    Result := '_';
+end;
+
+
+function CountRecordsInElement(e: IInterface): integer;
+var
+  i: integer;
+begin
+  Result := 0;
+  if not Assigned(e) then
+    Exit;
+
+  if (ElementType(e) = etMainRecord) then
+  begin
+    Result := 1;
+    Exit;
+  end;
+
+  for i := 0 to ElementCount(e) - 1 do
+    Result := Result + CountRecordsInElement(ElementByIndex(e, i));
+end;
+
+
+function BuildRecordFileName(e: IInterface): string;
+var
+  editor_id: string;
+begin
+  editor_id := SanitizePathPart(EditorID(e));
+  if (editor_id = '_') then
+    editor_id := Signature(e);
+  Result := Signature(e) + '_' + editor_id + '_' + IntToHex(GetLoadOrderFormID(e), 8) + '.json';
+end;
 
 // Called before processing
 // You can remove it if script doesn't require initialization code
 function Initialize: integer;
+var
+  i: integer;
 begin
   Result := 0;
 
   json_output := TStringList.Create;
   json_filecount := 0;
+  json_total_records := 0;
+
+  if (SelectionCount = 0) then
+  begin
+    AddMessage('WARNING: No elements selected.');
+  end
+  else
+  begin
+    for i := 0 to SelectionCount - 1 do
+      json_total_records := json_total_records + CountRecordsInElement(ObjectToElement(Selection[i]));
+  end;
+
+  if (json_total_records > 0) then
+    AddMessage('INFO: Prescan complete. Records to export: ' + IntToStr(json_total_records));
 //  PrintElementTypes();
 //  PrintVarTypes();
 
@@ -246,7 +310,8 @@ begin
         if (Pos('\ Value', element_path) <> 0) then element_edit_value := IntToStr(native_value);
         if (Pos('Data Size', element_path) <> 0) then element_edit_value := IntToStr(native_value);
         if (Pos('\ Damage', element_path) <> 0) then element_edit_value := IntToStr(native_value);
-        if (Pos('\ Armor', element_path) <> 0) then element_edit_value := IntToStr(native_value);
+        // Some records expose armor as non-integer variant values; avoid IntToStr type mismatches.
+        if (Pos('\ Armor', element_path) <> 0) then element_edit_value := VarToStr(native_value);
         if (Pos('\ Health', element_path) <> 0) then element_edit_value := IntToStr(native_value);
 
         if (Pos('EFID - Magic effect name', element_path) <> 0) then element_edit_value := '"' + GetEditValue(element) + '"';
@@ -337,10 +402,10 @@ end;
 // called for every record selected in xEdit
 function Process(e: IInterface): integer;
 var
-  element, parent: IInterface;
-  string_offset, element_count, element_index, child_count: integer;
-  element_filename, element_path, element_edit_value, prefix, output_root: string;
-  sig, x_string, parent_path, parent_basename: string;
+  parent: IInterface;
+  string_offset: integer;
+  element_filename, element_path, prefix, output_root: string;
+  sig, x_string, parent_path, parent_basename, plugin_name: string;
   parent_type: TwbElementType;
 begin
   Result := 0;
@@ -352,7 +417,8 @@ begin
 //  AddMessage('Processing: ' + Name(e));
 
   parent := GetContainer(e);
-  element_filename := IntToHex(GetLoadOrderFormID(e),8) + '.json';
+  element_filename := BuildRecordFileName(e);
+  plugin_name := ChangeFileExt(GetFileName(GetFile(e)), '');
   while (Assigned(parent)) do
     begin
       parent_type := ElementType(parent);
@@ -450,9 +516,9 @@ begin
       // Not GroupRecord
       else if (parent_type = etFile) then
       begin
-        parent_path := parent_basename;
+        parent_path := plugin_name;
       end;
-      element_path := parent_path + '\' + element_path;
+      element_path := SanitizePathPart(parent_path) + '\' + element_path;
       parent := GetContainer(parent);
     end;
 //  AddMessage('DEBUG: composed path: ' + element_path);
@@ -461,6 +527,8 @@ begin
   // processing code goes here
   json_filecount := json_filecount + 1;
   if (json_filecount mod 100 = 0) then AddMessage('INFO: ' + IntToStr(json_filecount) + ' files written...');
+  if (json_total_records > 0) then
+    AddMessage('Progress: ' + IntToStr(json_filecount) + '/' + IntToStr(json_total_records));
 //  json_output := TStringList.Create;
   ProcessChild(e, '', '');
   if (element_path <> '') And (element_path[Length(element_path)] = '\') then
