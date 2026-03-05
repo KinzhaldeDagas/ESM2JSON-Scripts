@@ -36,7 +36,6 @@ end;
 
 function CountRecordsInElement(e: IInterface): integer;
 var
-  i: integer;
 begin
   Result := 0;
   if not Assigned(e) then
@@ -69,8 +68,6 @@ end;
 // Called before processing
 // You can remove it if script doesn't require initialization code
 function Initialize: integer;
-var
-  i: integer;
 begin
   Result := 0;
 
@@ -78,18 +75,7 @@ begin
   json_filecount := 0;
   json_total_records := 0;
 
-  if (SelectionCount = 0) then
-  begin
-    AddMessage('WARNING: No elements selected.');
-  end
-  else
-  begin
-    for i := 0 to SelectionCount - 1 do
-      json_total_records := json_total_records + CountRecordsInElement(ObjectToElement(Selection[i]));
-  end;
-
-  if (json_total_records > 0) then
-    AddMessage('INFO: Prescan complete. Records to export: ' + IntToStr(json_total_records));
+  AddMessage('INFO: Prescan skipped (selection API unavailable in this xEdit build).');
 //  PrintElementTypes();
 //  PrintVarTypes();
 
