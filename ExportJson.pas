@@ -1,7 +1,7 @@
 {
   ESM 2 JSON exporter.
 }
-unit esm2json_exporter;
+unit exportjson;
 
 var
   json_output: TStringList;
@@ -25,6 +25,14 @@ begin
     Result := '_';
 end;
 
+function ShouldExportRecord(e: IInterface): boolean;
+var
+  sig: string;
+begin
+  sig := Signature(e);
+  Result := (CompareText(sig, 'WRLD') <> 0) And (CompareText(sig, 'CELL') <> 0);
+end;
+
 
 function CountRecordsInElement(e: IInterface): integer;
 var
@@ -36,7 +44,10 @@ begin
 
   if (ElementType(e) = etMainRecord) then
   begin
-    Result := 1;
+    if ShouldExportRecord(e) then
+      Result := 1
+    else
+      Result := 0;
     Exit;
   end;
 
@@ -409,6 +420,9 @@ var
   parent_type: TwbElementType;
 begin
   Result := 0;
+
+  if not ShouldExportRecord(e) then
+    Exit;
 
   prefix := '    ';
   output_root := ExtractFilePath(ParamStr(0)) + 'json_export\';
