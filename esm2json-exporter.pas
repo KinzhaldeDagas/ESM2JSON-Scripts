@@ -67,14 +67,14 @@ begin
   json_filecount := 0;
   json_total_records := 0;
 
-  if (FileCount = 0) then
+  if (SelectionCount = 0) then
   begin
-    AddMessage('WARNING: No files loaded.');
+    AddMessage('WARNING: No elements selected.');
   end
   else
   begin
-    for i := 0 to FileCount - 1 do
-      json_total_records := json_total_records + CountRecordsInElement(FileByIndex(i));
+    for i := 0 to SelectionCount - 1 do
+      json_total_records := json_total_records + CountRecordsInElement(ObjectToElement(Selection[i]));
   end;
 
   if (json_total_records > 0) then
